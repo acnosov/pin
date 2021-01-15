@@ -1,0 +1,46 @@
+create table dbo.Side
+(
+    Id          bigint                                     not null,
+    SideIndex   tinyint                                    not null,
+
+    SportName   varchar(1000),
+    SportId     int,
+    LeagueName  varchar(1000),
+    LeagueId    int,
+    Home        varchar(1000),
+    HomeId      int,
+    Away        varchar(1000),
+    AwayId      int,
+    MarketName  varchar(1000),
+    MarketId    int,
+    Price       decimal(9, 5),
+    Initiator   bit,
+    Starts      datetimeoffset,
+    EventId     int,
+
+    CheckId     bigint,
+    AccountId   tinyint                                    not null,
+    CheckPrice  decimal(9, 5),
+    CheckStatus varchar(1000),
+    CountLine   int,
+    CountEvent  int,
+    AmountEvent int,
+    MinBet      decimal(9, 4),
+    MaxBet      decimal(9, 4),
+    Balance     int,
+    Currency    decimal(9, 5),
+    CheckDone   bigint,
+
+    CalcStatus  varchar(1000),
+    MaxStake    decimal(9, 4),
+    MinStake    decimal(9, 5),
+    MaxWin      decimal(9, 5),
+    Stake       decimal(9, 5),
+    Win         decimal(9, 5),
+    IsFirst     bit,
+
+    CreatedAt   datetimeoffset default sysdatetimeoffset() not null,
+    UpdatedAt   datetimeoffset default sysdatetimeoffset() not null,
+
+    constraint PK_Check primary key (Id, SideIndex),
+);
