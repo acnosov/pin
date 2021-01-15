@@ -5,7 +5,6 @@ import (
 	"errors"
 	api "github.com/aibotsoft/gen/epinapi"
 	"github.com/aibotsoft/micro/config"
-	"github.com/aibotsoft/micro/config_client"
 	"github.com/aibotsoft/pin/pkg/store"
 	"go.uber.org/zap"
 	"net/http"
@@ -21,12 +20,12 @@ type Auth struct {
 	log     *zap.SugaredLogger
 	store   *store.Store
 	eClient *api.APIClient
-	conf    *config_client.ConfClient
+	//conf    *config_client.ConfClient
 	Account store.Account
 	token   store.Token
 }
 
-func New(cfg *config.Config, log *zap.SugaredLogger, store *store.Store, conf *config_client.ConfClient) *Auth {
+func New(cfg *config.Config, log *zap.SugaredLogger, store *store.Store) *Auth {
 	account, err := store.GetAccount(context.Background())
 	if err != nil {
 		log.Panic(err)
@@ -37,7 +36,7 @@ func New(cfg *config.Config, log *zap.SugaredLogger, store *store.Store, conf *c
 	clientConfig.Debug = cfg.Service.Debug
 	client := api.NewAPIClient(clientConfig)
 
-	a := &Auth{cfg: cfg, log: log, store: store, Account: account, eClient: client, conf: conf}
+	a := &Auth{cfg: cfg, log: log, store: store, Account: account, eClient: client}
 	//err = a.Login(context.Background())
 	//if err != nil {
 	//	log.Error(err)

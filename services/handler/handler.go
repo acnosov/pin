@@ -7,7 +7,6 @@ import (
 	pb "github.com/aibotsoft/gen/fortedpb"
 	api "github.com/aibotsoft/gen/pinapi"
 	"github.com/aibotsoft/micro/config"
-	"github.com/aibotsoft/micro/config_client"
 	"github.com/aibotsoft/micro/status"
 	"github.com/aibotsoft/micro/util"
 	"github.com/aibotsoft/pin/pkg/client"
@@ -30,12 +29,12 @@ type Handler struct {
 	account store.Account
 	eClient *epinapi.APIClient
 	auth    *auth.Auth
-	Conf    *config_client.ConfClient
+	//Conf    *config_client.ConfClient
 }
 
 const LockTimeOut = time.Second * 28
 
-func NewHandler(cfg *config.Config, log *zap.SugaredLogger, store *store.Store, auth *auth.Auth, conf *config_client.ConfClient) *Handler {
+func NewHandler(cfg *config.Config, log *zap.SugaredLogger, store *store.Store, auth *auth.Auth) *Handler {
 	ctx := context.Background()
 	account, err := store.GetAccount(ctx)
 	if err != nil {
@@ -50,7 +49,7 @@ func NewHandler(cfg *config.Config, log *zap.SugaredLogger, store *store.Store, 
 	eClient := epinapi.NewAPIClient(clientConfig)
 
 	h := &Handler{cfg: cfg, log: log, client: cli, store: store, balance: Balance{},
-		account: account, eClient: eClient, auth: auth, Conf: conf}
+		account: account, eClient: eClient, auth: auth}
 	return h
 }
 

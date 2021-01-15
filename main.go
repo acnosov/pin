@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/aibotsoft/micro/config"
-	"github.com/aibotsoft/micro/config_client"
 	"github.com/aibotsoft/micro/logger"
 	"github.com/aibotsoft/micro/sqlserver"
 	"github.com/aibotsoft/pin/pkg/store"
@@ -22,11 +21,11 @@ func main() {
 	log.Infow("Begin service", "config", cfg.Service)
 	db := sqlserver.MustConnectX(cfg)
 	sto := store.NewStore(cfg, log, db)
-	conf := config_client.New(cfg, log)
+	//conf := config_client.New(cfg, log)
 
-	au := auth.New(cfg, log, sto, conf)
+	au := auth.New(cfg, log, sto)
 	go au.AuthJob()
-	h := handler.NewHandler(cfg, log, sto, au, conf)
+	h := handler.NewHandler(cfg, log, sto, au)
 	go h.BalanceJob()
 	go h.BetStatusJob()
 
