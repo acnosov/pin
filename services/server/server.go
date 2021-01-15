@@ -2,9 +2,9 @@ package server
 
 import (
 	"context"
-	"database/sql"
-	pb "github.com/aibotsoft/gen/surebetpb"
+	pb "github.com/aibotsoft/gen/fortedpb"
 	"github.com/aibotsoft/micro/config"
+	"github.com/aibotsoft/pin/services/handler"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -14,37 +14,65 @@ import (
 )
 
 type Server struct {
-	cfg *config.Config
-	log *zap.SugaredLogger
-	//store *Store
-	gs *grpc.Server
-	pb.UnimplementedSurebetServer
+	cfg     *config.Config
+	log     *zap.SugaredLogger
+	gs      *grpc.Server
+	handler *handler.Handler
+	pb.UnimplementedFortedServer
+}
+
+func (s *Server) ReleaseCheck(ctx context.Context, req *pb.ReleaseCheckRequest) (*pb.ReleaseCheckResponse, error) {
+	s.handler.ReleaseCheck(ctx, req.GetSurebet())
+	return &pb.ReleaseCheckResponse{}, nil
+}
+func (s *Server) Ping(ctx context.Context, req *pb.PingRequest) (*pb.PingResponse, error) {
+	return &pb.PingResponse{}, nil
+}
+func (s *Server) GetResults(ctx context.Context, req *pb.GetResultsRequest) (*pb.GetResultsResponse, error) {
+	results, err := s.handler.GetResults(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "GetResults from db error")
+	}
+	return &pb.GetResultsResponse{Results: results}, nil
+}
+
+func (s *Server) PlaceBet(ctx context.Context, req *pb.PlaceBetRequest) (*pb.PlaceBetResponse, error) {
+	sb := req.GetSurebet()
+	err := s.handler.PlaceBet(ctx, sb)
+	if err != nil {
+		s.log.Error(err)
+	}
+	return &pb.PlaceBetResponse{Side: sb.Members[0]}, nil
 }
 
 func (s *Server) CheckLine(ctx context.Context, req *pb.CheckLineRequest) (*pb.CheckLineResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CheckLine not implemented")
+	sb := req.GetSurebet()
+	err := s.handler.CheckLine(ctx, sb)
+	if err != nil {
+		s.log.Infow("handler.CheckLine error", "err", err)
+	}
+	return &pb.CheckLineResponse{Side: sb.Members[0]}, nil
 }
 
-func NewServer(cfg *config.Config, log *zap.SugaredLogger, db *sql.DB) *Server {
-	return &Server{
-		cfg: cfg,
-		log: log,
-		//store: NewStore(cfg, log, db),
-		gs: grpc.NewServer(),
-	}
+func NewServer(cfg *config.Config, log *zap.SugaredLogger, handler *handler.Handler) *Server {
+	return &Server{cfg: cfg, log: log, handler: handler, gs: grpc.NewServer()}
 }
 func (s *Server) Serve() error {
-	addr := net.JoinHostPort("", "50051")
+	addr, err := s.handler.Conf.GetGrpcAddr(context.Background(), s.cfg.Service.Name)
+	if err != nil {
+		s.log.Panic(err)
+	}
 	lis, err := net.Listen("tcp", addr)
 	if err != nil {
 		return errors.Wrap(err, "net.Listen error")
 	}
-	pb.RegisterSurebetServer(s.gs, s)
-	s.log.Info("gRPC Proxy Server listens on addr ", addr)
+	pb.RegisterFortedServer(s.gs, s)
+	s.log.Info("gRPC Server listens on addr ", addr)
 	return s.gs.Serve(lis)
 }
-func (s *Server) GracefulStop() {
+func (s *Server) Close() {
 	s.log.Debug("begin gRPC server gracefulStop")
 	s.gs.GracefulStop()
+	s.handler.Close()
 	s.log.Debug("end gRPC server gracefulStop")
 }

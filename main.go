@@ -1,35 +1,48 @@
 package main
 
 import (
+	"fmt"
 	"github.com/aibotsoft/micro/config"
+	"github.com/aibotsoft/micro/config_client"
 	"github.com/aibotsoft/micro/logger"
 	"github.com/aibotsoft/micro/sqlserver"
+	"github.com/aibotsoft/pin/pkg/store"
+	"github.com/aibotsoft/pin/services/auth"
+	"github.com/aibotsoft/pin/services/collector"
+	"github.com/aibotsoft/pin/services/handler"
 	"github.com/aibotsoft/pin/services/server"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 func main() {
 	cfg := config.New()
 	log := logger.New()
-	log.Infow("Begin service", "config", cfg)
-	db := sqlserver.MustConnect(cfg)
+	log.Infow("Begin service", "config", cfg.Service)
+	db := sqlserver.MustConnectX(cfg)
+	sto := store.NewStore(cfg, log, db)
+	conf := config_client.New(cfg, log)
 
-	s := server.NewServer(cfg, log, db)
-	log.Info(s)
-	//auth := context.WithValue(context.Background(), api.ContextBasicAuth, api.BasicAuth{
-	//	UserName: "ON868133",
-	//	Password: "@RjE5d4Q",
-	//})
-	//clientConfig := api.NewConfiguration()
-	////cfg.AddDefaultHeader("testheader", "testvalue")
-	//////cfg.Host = testHost
-	//////cfg.Scheme = testScheme
-	//client := api.NewAPIClient(clientConfig)
-	////log.Println(auth)
-	////log.Println(client)
-	//sports, response, err := client.OthersApi.SportsV2Get(auth).Execute()
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//log.Info(sports.GetSports())
-	//log.Info(response)
+	au := auth.New(cfg, log, sto, conf)
+	go au.AuthJob()
+	h := handler.NewHandler(cfg, log, sto, au, conf)
+	go h.BalanceJob()
+	go h.BetStatusJob()
+
+	s := server.NewServer(cfg, log, h)
+	// Инициализируем Close
+	errc := make(chan error)
+	go func() {
+		c := make(chan os.Signal)
+		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+		errc <- fmt.Errorf("%s", <-c)
+	}()
+
+	c := collector.NewCollector(cfg, log, sto)
+	go c.CollectJob()
+
+	go func() { errc <- s.Serve() }()
+	defer func() { s.Close() }()
+	log.Info("exit: ", <-errc)
 }
