@@ -9,7 +9,7 @@ linux_build:
 	GOOS=linux go build -o dist/service main.go
 
 build:
-	go build -o dist/service main.go
+	CGO_ENABLED=0 GOARCH=amd64 go build -ldflags="-w -s" -o dist/pin.exe main.go
 
 run:
 	go run main.go
@@ -50,4 +50,4 @@ mig_up:
 	migrate -verbose -source file://migrations -database $$DSL goto 2
 
 mig_create:
-	migrate create -ext sql -dir migrations uspSaveToken
+	migrate create -ext sql -dir migrations uspCleanOldData

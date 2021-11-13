@@ -100,8 +100,10 @@ func (h *Handler) ECheck(ctx context.Context, sb *pb.Surebet, m Market) {
 	ETicketMap.Store(side.Check.Id, ticket)
 
 	side.Check.Status = status.StatusOk
-	side.Check.Balance = util.ToUSDInt(h.GetBalance(), side.Check.Currency)
-	side.Check.FillFactor = h.balance.CalcFillFactor()
+	//side.Check.Balance = util.ToUSDInt(h.GetBalance(), side.Check.Currency)
+	side.Check.Balance = 1000
+	//side.Check.FillFactor = h.balance.CalcFillFactor()
+	side.Check.FillFactor = 0
 
 	side.Check.Price = ticket.GetPrice()
 	side.Starts = sb.Starts

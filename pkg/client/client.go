@@ -3,7 +3,7 @@ package client
 import (
 	"context"
 	api "github.com/aibotsoft/gen/pinapi"
-	"github.com/aibotsoft/micro/config"
+	"github.com/aibotsoft/pin/pkg/config"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"time"
@@ -19,7 +19,6 @@ type Client struct {
 const CheckAcceptedTryMaxCount = 10
 
 func (c *Client) CheckAccepted(uniqueRequestId string) (api.PlaceBetResponseV2, error) {
-	//todo: эту функцию можно адаптировать к ожиданию принятия лайф ставок
 	var res api.GetBetsByTypeResponseV3
 	var err error
 	for i := 0; i < CheckAcceptedTryMaxCount; i++ {
@@ -221,6 +220,6 @@ func NewClient(cfg *config.Config, log *zap.SugaredLogger, username string, pass
 	//auth := context.WithValue(context.Background(), api.ContextBasicAuth, api.BasicAuth{UserName: username, Password: password})
 	ba := api.BasicAuth{UserName: username, Password: password}
 	clientConfig := api.NewConfiguration()
-	clientConfig.Debug = cfg.Service.Debug
+	clientConfig.Debug = cfg.PinDebug
 	return &Client{cfg: cfg, log: log, APIClient: api.NewAPIClient(clientConfig), basicAuth: ba}
 }

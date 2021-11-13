@@ -11,23 +11,32 @@ import (
 	"time"
 )
 
-const sportMinPeriodSeconds = 120
-const leagueMinPeriodSeconds = 120
+//const sportMinPeriodSeconds = 120
+const leagueMinPeriodSeconds = 300
 const eventMinPeriodSeconds = 60
-const periodMinPeriodSeconds = 60 * 60 * 24 * 7
-const betResultMinPeriodSeconds = 5 * 60
-const collectMinPeriod = 2 * time.Second
+const periodMinPeriodSeconds = 60 * 60 * 24 * 7 * 2
+const betResultMinPeriodSeconds = 10 * 60
+const collectMinPeriod = 3 * time.Second
 
-var stopSportId = map[int]bool{12: true, 58: true, 57: true, 24: true}
+//var stopSportId = map[int]bool{12: true, 58: true, 57: true, 24: true}
 var leagueMinPeriod = make(map[int]time.Time)
 var eventMinPeriod = make(map[int]time.Time)
 var periodMinPeriod = make(map[int]time.Time)
 
 var betResultLast time.Time
 var eventLast = make(map[int]int64)
-var specialLast = make(map[int]int64)
-var lineLast = make(map[int]int64)
-var specialLineLast = make(map[int]int64)
+
+//var specialLast = make(map[int]int64)
+//var lineLast = make(map[int]int64)
+//var specialLineLast = make(map[int]int64)
+
+var sports = []api.Sport{{
+	Id:   api.PtrInt(29),
+	Name: api.PtrString("Soccer"),
+}, {
+	Id:   api.PtrInt(4),
+	Name: api.PtrString("Basketball"),
+}}
 
 type Collector struct {
 	cfg       *config.Config
@@ -37,11 +46,24 @@ type Collector struct {
 	sports    []api.Sport
 	sportLast time.Time
 	account   store.Account
+
+	eventCount int
 }
 
+func NewCollector(cfg *config.Config, log *zap.SugaredLogger, store *store.Store) *Collector {
+	ctx := context.Background()
+	account, err := store.GetAccount(ctx)
+	if err != nil {
+		log.Panicw("get account error", "err", err)
+	}
+	log.Info(account)
+	cli := client.NewClient(cfg, log, account.Username, account.Password)
+	return &Collector{cfg: cfg, log: log, client: cli, store: store, account: account}
+}
 func (c *Collector) AccId() int {
 	return c.account.Id
 }
+
 func (c *Collector) CollectJob() {
 	for {
 		start := time.Now()
@@ -52,27 +74,24 @@ func (c *Collector) CollectJob() {
 			c.log.Info(err)
 			time.Sleep(time.Minute)
 		} else {
-			c.log.Infow("collect_job_done", "time", time.Since(start))
+			c.log.Infow("collect_job_done", "time", time.Since(start), "eventCount", c.eventCount)
 			time.Sleep(time.Second * 10)
 		}
 	}
 }
 
 func (c *Collector) CollectRound(ctx context.Context) error {
-	sports, err := c.Sports(ctx)
-	if err != nil {
-		return err
-	}
-	err = c.BetList(ctx)
-	c.errLogAndSleep(err)
+	//err := c.BetList(ctx)
+	//c.errLogAndSleep(err)
 
+	c.eventCount = 0
 	for _, sport := range sports {
-		if stopSportId[sport.GetId()] {
-			continue
-		}
-		if sport.GetEventCount()+sport.GetEventSpecialsCount() == 0 {
-			continue
-		}
+		//if stopSportId[sport.GetId()] {
+		//	continue
+		//}
+		//if sport.GetEventCount()+sport.GetEventSpecialsCount() == 0 {
+		//	continue
+		//}
 		err := c.Leagues(ctx, sport)
 		c.errLogAndSleep(err)
 
@@ -85,8 +104,8 @@ func (c *Collector) CollectRound(ctx context.Context) error {
 		//err = c.Specials(ctx, sport)
 		//c.errLogAndSleep(err)
 
-		err = c.Lines(ctx, sport)
-		c.errLogAndSleep(err)
+		//err = c.Lines(ctx, sport)
+		//c.errLogAndSleep(err)
 
 		//err = c.SpecialLines(ctx, sport)
 		//c.errLogAndSleep(err)
@@ -99,23 +118,6 @@ func (c *Collector) errLogAndSleep(err error) {
 		c.log.Info(err)
 	}
 	time.Sleep(collectMinPeriod)
-}
-
-func (c *Collector) Sports(ctx context.Context) ([]api.Sport, error) {
-	var err error
-	if time.Since(c.sportLast).Seconds() < sportMinPeriodSeconds {
-		return c.sports, nil
-	}
-	c.sports, err = c.client.GetSports(ctx)
-	if err != nil {
-		return nil, errors.Wrap(err, "client.GetSports error")
-	}
-	err = c.store.SaveSports(ctx, c.sports)
-	if err != nil {
-		return nil, errors.Wrap(err, "store.SaveSports error")
-	}
-	c.sportLast = time.Now()
-	return c.sports, nil
 }
 
 func (c *Collector) Leagues(ctx context.Context, sport api.Sport) error {
@@ -157,16 +159,17 @@ func (c *Collector) Events(ctx context.Context, sport api.Sport) error {
 	if time.Since(eventMinPeriod[sport.GetId()]).Seconds() < eventMinPeriodSeconds {
 		return nil
 	}
-	if sport.GetEventCount() == 0 {
-		c.log.Infow("sport has no events", "sportId", sport.GetId(), "sport.GetEventCount", sport.GetEventCount())
-		return nil
-	}
+	//if sport.GetEventCount() == 0 {
+	//	c.log.Infow("sport has no events", "sportId", sport.GetId(), "sport.GetEventCount", sport.GetEventCount())
+	//	return nil
+	//}
 	events, err := c.client.GetEvents(ctx, sport.GetId(), eventLast[sport.GetId()])
 	if err != nil {
 		return errors.Wrap(err, "GetEvents error")
 	}
 	eventLast[sport.GetId()] = events.GetLast()
 	for _, league := range events.GetLeague() {
+		c.eventCount = c.eventCount + len(league.GetEvents())
 		//c.log.Info("sportId:", sport.GetId(), " real event count: ", len(league.GetEvents()))
 		err := c.store.SaveEvents(ctx, league.GetId(), league.GetEvents())
 		if err != nil {
@@ -178,65 +181,6 @@ func (c *Collector) Events(ctx context.Context, sport api.Sport) error {
 	return nil
 }
 
-func (c *Collector) Specials(ctx context.Context, sport api.Sport) error {
-	if sport.GetEventSpecialsCount() == 0 {
-		//c.log.Infow("sport has no special", "sportId", sport.GetId(), "EventSpecialsCount", sport.GetEventSpecialsCount())
-		return nil
-	}
-	specials, err := c.client.GetSpecials(ctx, sport.GetId(), specialLast[sport.GetId()])
-	if err != nil {
-		return errors.Wrap(err, "GetSpecials error")
-	}
-	specialLast[sport.GetId()] = specials.GetLast()
-
-	for _, league := range specials.GetLeagues() {
-		err := c.store.SaveSpecials(ctx, league.GetId(), league.GetSpecials())
-		if err != nil {
-			c.log.Error(err)
-			continue
-		}
-	}
-	return nil
-}
-
-func (c *Collector) Lines(ctx context.Context, sport api.Sport) error {
-	lines, err := c.client.GetLines(ctx, sport.GetId(), lineLast[sport.GetId()])
-	if err != nil {
-		return errors.Wrap(err, "GetLines error")
-	}
-	lineLast[sport.GetId()] = lines.GetLast()
-	for _, league := range lines.GetLeagues() {
-		for _, event := range league.GetEvents() {
-			//c.log.Infow("event", "", event)
-			err := c.store.SaveLines(ctx, event.GetId(), event.GetPeriods())
-			if err != nil {
-				c.log.Error(err)
-				continue
-			}
-		}
-	}
-	return nil
-}
-
-func (c *Collector) SpecialLines(ctx context.Context, sport api.Sport) error {
-	if sport.GetEventSpecialsCount() == 0 {
-		//c.log.Infow("sport has no special", "sportId", sport.GetId(), "EventSpecialsCount", sport.GetEventSpecialsCount())
-		return nil
-	}
-	lines, err := c.client.GetSpecialLines(ctx, sport.GetId(), specialLineLast[sport.GetId()])
-	if err != nil {
-		return errors.Wrap(err, "GetSpecialLines error")
-	}
-	specialLineLast[sport.GetId()] = lines.GetLast()
-	for _, league := range lines.GetLeagues() {
-		err := c.store.SaveSpecialLines(ctx, league.GetId(), league.GetSpecials())
-		if err != nil {
-			c.log.Error(err)
-			continue
-		}
-	}
-	return nil
-}
 func (c *Collector) BetList(ctx context.Context) error {
 	if time.Since(betResultLast).Seconds() < betResultMinPeriodSeconds {
 		return nil
@@ -254,15 +198,82 @@ func (c *Collector) BetList(ctx context.Context) error {
 	return nil
 }
 
-func NewCollector(cfg *config.Config, log *zap.SugaredLogger, store *store.Store) *Collector {
-	ctx := context.Background()
-	account, err := store.GetAccount(ctx)
-	if err != nil {
-		log.Panicw("get account error", "err", err)
-	}
-	cli := client.NewClient(cfg, log, account.Username, account.Password)
-	return &Collector{cfg: cfg, log: log, client: cli, store: store, account: account}
-}
+//func (c *Collector) Lines(ctx context.Context, sport api.Sport) error {
+//	lines, err := c.client.GetLines(ctx, sport.GetId(), lineLast[sport.GetId()])
+//	if err != nil {
+//		return errors.Wrap(err, "GetLines error")
+//	}
+//	lineLast[sport.GetId()] = lines.GetLast()
+//	for _, league := range lines.GetLeagues() {
+//		for _, event := range league.GetEvents() {
+//			//c.log.Infow("event", "", event)
+//			err := c.store.SaveLines(ctx, event.GetId(), event.GetPeriods())
+//			if err != nil {
+//				c.log.Error(err)
+//				continue
+//			}
+//		}
+//	}
+//	return nil
+//}
+
+//func (c *Collector) Sports(ctx context.Context) ([]api.Sport, error) {
+//	var err error
+//	if time.Since(c.sportLast).Seconds() < sportMinPeriodSeconds {
+//		return c.sports, nil
+//	}
+//	c.sports, err = c.client.GetSports(ctx)
+//	if err != nil {
+//		return nil, errors.Wrap(err, "client.GetSports error")
+//	}
+//	err = c.store.SaveSports(ctx, c.sports)
+//	if err != nil {
+//		return nil, errors.Wrap(err, "store.SaveSports error")
+//	}
+//	c.sportLast = time.Now()
+//	return c.sports, nil
+//}
+
+//func (c *Collector) Specials(ctx context.Context, sport api.Sport) error {
+//	if sport.GetEventSpecialsCount() == 0 {
+//		//c.log.Infow("sport has no special", "sportId", sport.GetId(), "EventSpecialsCount", sport.GetEventSpecialsCount())
+//		return nil
+//	}
+//	specials, err := c.client.GetSpecials(ctx, sport.GetId(), specialLast[sport.GetId()])
+//	if err != nil {
+//		return errors.Wrap(err, "GetSpecials error")
+//	}
+//	specialLast[sport.GetId()] = specials.GetLast()
+//
+//	for _, league := range specials.GetLeagues() {
+//		err := c.store.SaveSpecials(ctx, league.GetId(), league.GetSpecials())
+//		if err != nil {
+//			c.log.Error(err)
+//			continue
+//		}
+//	}
+//	return nil
+//}
+
+//func (c *Collector) SpecialLines(ctx context.Context, sport api.Sport) error {
+//	if sport.GetEventSpecialsCount() == 0 {
+//		//c.log.Infow("sport has no special", "sportId", sport.GetId(), "EventSpecialsCount", sport.GetEventSpecialsCount())
+//		return nil
+//	}
+//	lines, err := c.client.GetSpecialLines(ctx, sport.GetId(), specialLineLast[sport.GetId()])
+//	if err != nil {
+//		return errors.Wrap(err, "GetSpecialLines error")
+//	}
+//	specialLineLast[sport.GetId()] = lines.GetLast()
+//	for _, league := range lines.GetLeagues() {
+//		err := c.store.SaveSpecialLines(ctx, league.GetId(), league.GetSpecials())
+//		if err != nil {
+//			c.log.Error(err)
+//			continue
+//		}
+//	}
+//	return nil
+//}
 
 //func (c *Collector) Balance(ctx context.Context) (api.ClientBalanceResponse, error) {
 //	var err error

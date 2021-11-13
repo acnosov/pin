@@ -6,8 +6,7 @@ import (
 	"fmt"
 	pb "github.com/aibotsoft/gen/fortedpb"
 	api "github.com/aibotsoft/gen/pinapi"
-	"github.com/aibotsoft/micro/cache"
-	"github.com/aibotsoft/micro/config"
+	"github.com/aibotsoft/pin/pkg/config"
 	mssql "github.com/denisenkom/go-mssqldb"
 	"github.com/dgraph-io/ristretto"
 	"github.com/jmoiron/sqlx"
@@ -360,7 +359,16 @@ func (s *Store) CreateSport(ctx context.Context, sport api.Sport) error {
 }
 
 func NewStore(cfg *config.Config, log *zap.SugaredLogger, db *sqlx.DB) *Store {
-	return &Store{log: log, db: db, Cache: cache.NewCache(cfg)}
+	cache, err := ristretto.NewCache(&ristretto.Config{
+		NumCounters: 10000000,
+		MaxCost:     100000000,
+		BufferItems: 64,
+		Metrics:     false,
+	})
+	if err != nil {
+		panic(err)
+	}
+	return &Store{log: log, db: db, Cache: cache}
 }
 
 func (s *Store) Close() {
@@ -628,16 +636,17 @@ type Token struct {
 	ApiKey    string
 	Device    string
 	TrustCode string
+	Id        int64
 }
 
 func (s *Store) LoadToken(ctx context.Context) (Token, error) {
 	var t Token
-	err := s.db.GetContext(ctx, &t, "select Session, ApiKey, Device,TrustCode from dbo.Auth order by CreatedAt desc;")
+	err := s.db.GetContext(ctx, &t, "select Session, ApiKey, Device,TrustCode,Id from dbo.Auth where Id=1")
 	return t, err
 }
 
 func (s *Store) SaveToken(ctx context.Context, token Token) error {
-	_, err := s.db.ExecContext(ctx, "dbo.uspSaveToken",
+	_, err := s.db.ExecContext(ctx, "UPDATE dbo.Auth SET Session=@Session, ApiKey=@ApiKey, Device=@Device, TrustCode=@TrustCode where Id=1",
 		sql.Named("Session", token.Session),
 		sql.Named("ApiKey", token.ApiKey),
 		sql.Named("Device", token.Device),

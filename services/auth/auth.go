@@ -3,8 +3,9 @@ package auth
 import (
 	"context"
 	"errors"
+	"fmt"
 	api "github.com/aibotsoft/gen/epinapi"
-	"github.com/aibotsoft/micro/config"
+	"github.com/aibotsoft/pin/pkg/config"
 	"github.com/aibotsoft/pin/pkg/store"
 	"go.uber.org/zap"
 	"net/http"
@@ -31,9 +32,10 @@ func New(cfg *config.Config, log *zap.SugaredLogger, store *store.Store) *Auth {
 		log.Panic(err)
 	}
 	clientConfig := api.NewConfiguration()
+	clientConfig.Host = cfg.PinEsportHost
 	tr := &http.Transport{TLSHandshakeTimeout: 0 * time.Second, IdleConnTimeout: 0 * time.Second}
 	clientConfig.HTTPClient = &http.Client{Transport: tr}
-	clientConfig.Debug = cfg.Service.Debug
+	clientConfig.Debug = cfg.PinDebug
 	client := api.NewAPIClient(clientConfig)
 
 	a := &Auth{cfg: cfg, log: log, store: store, Account: account, eClient: client}
@@ -84,6 +86,8 @@ func (a *Auth) Login(ctx context.Context) error {
 	resp, _, err := a.eClient.ClientApi.Login(a.AuthLogin(ctx)).LoginRequest(api.LoginRequest{
 		Username: a.Account.Username, Password: a.Account.Password, TrustCode: a.token.TrustCode}).Execute()
 	if err != nil {
+		apiErr := err.(api.GenericOpenAPIError)
+		a.log.Infow("err", "err", string(apiErr.Body()))
 		return err
 	}
 	a.token.Session = resp.GetToken()
@@ -92,12 +96,14 @@ func (a *Auth) Login(ctx context.Context) error {
 	return nil
 }
 func (a *Auth) CheckLogin(ctx context.Context) error {
+	a.log.Infow("begin_check_login")
 	_, r, err := a.eClient.ClientApi.CheckLogin(a.Auth(ctx), a.token.Session).Execute()
 	if err != nil {
 		if r != nil && r.StatusCode == 401 {
 			return UnauthorizedError
 		}
-		return err
+		a.log.Info(r.Request.URL)
+		return fmt.Errorf("check_login_error: %s", err)
 	}
 	return nil
 }

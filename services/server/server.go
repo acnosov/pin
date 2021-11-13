@@ -3,7 +3,7 @@ package server
 import (
 	"context"
 	pb "github.com/aibotsoft/gen/fortedpb"
-	"github.com/aibotsoft/micro/config"
+	"github.com/aibotsoft/pin/pkg/config"
 	"github.com/aibotsoft/pin/services/handler"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -38,10 +38,10 @@ func (s *Server) GetResults(ctx context.Context, req *pb.GetResultsRequest) (*pb
 
 func (s *Server) PlaceBet(ctx context.Context, req *pb.PlaceBetRequest) (*pb.PlaceBetResponse, error) {
 	sb := req.GetSurebet()
-	err := s.handler.PlaceBet(ctx, sb)
-	if err != nil {
-		s.log.Error(err)
-	}
+	//err := s.handler.PlaceBet(ctx, sb)
+	//if err != nil {
+	//	s.log.Error(err)
+	//}
 	return &pb.PlaceBetResponse{Side: sb.Members[0]}, nil
 }
 
@@ -62,13 +62,13 @@ func (s *Server) Serve() error {
 	//if err != nil {
 	//	s.log.Panic(err)
 	//}
-	hostPort := net.JoinHostPort("", s.cfg.Service.GrpcPort)
+	hostPort := net.JoinHostPort("", s.cfg.GrpcPort)
 	lis, err := net.Listen("tcp", hostPort)
 	if err != nil {
 		return errors.Wrap(err, "net.Listen error")
 	}
 	pb.RegisterFortedServer(s.gs, s)
-	s.log.Info("gRPC Server listens on addr ", s.cfg.Service.GrpcPort)
+	s.log.Info("gRPC Server listens on addr ", s.cfg.GrpcPort)
 	return s.gs.Serve(lis)
 }
 func (s *Server) Close() {

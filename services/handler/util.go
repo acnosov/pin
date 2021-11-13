@@ -12,25 +12,26 @@ import (
 	"time"
 )
 
-var urlRe = regexp.MustCompile(`Odds\/(.*?)-(\d+)\/Market\/(\d+)\/(\d+)\/(\d+)`)
+//var urlRe = regexp.MustCompile(`Odds\/(.*?)-(\d+)\/Market\/(\d+)\/(\d+)\/(\d+)`)
+var urlRe = regexp.MustCompile(`Sports\/(\d+)\/Leagues\/(\d+)\/Events\/(\d+)`)
 
 func ParseUrl(side *pb.SurebetSide) (err error) {
 	u := urlRe.FindStringSubmatch(side.Url)
-	if len(u) < 5 {
+	if len(u) < 4 {
 		return errors.Errorf("parse url error %s", side.Url)
 	}
-	if u[1] != side.SportName {
-		return errors.Errorf("sport name %q does not match in url %q", side.SportName, u[2])
-	}
-	side.SportId, err = strconv.ParseInt(u[2], 10, 64)
+	//if u[1] != side.SportName {
+	//	return errors.Errorf("sport name %q does not match in url %q", side.SportName, u[2])
+	//}
+	side.SportId, err = strconv.ParseInt(u[1], 10, 64)
 	if err != nil {
 		return errors.Wrapf(err, "sportId error %v", u[2])
 	}
-	side.LeagueId, err = strconv.ParseInt(u[4], 10, 64)
+	side.LeagueId, err = strconv.ParseInt(u[2], 10, 64)
 	if err != nil {
 		return errors.Wrapf(err, "leagueId error %v", u[4])
 	}
-	side.EventId = u[5]
+	side.EventId = u[3]
 	return nil
 }
 

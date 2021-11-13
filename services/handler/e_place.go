@@ -46,7 +46,7 @@ func (h *Handler) EPlaceBet(ctx context.Context, sb *pb.Surebet) {
 			side.Bet.Price = resp.GetPrice()
 			side.Bet.Stake = util.ToUSD(resp.GetStake(), side.Check.Currency)
 			side.Bet.ApiBetId = strconv.FormatInt(resp.GetId(), 10)
-			h.balance.Sub(resp.GetStake())
+			//h.balance.Sub(resp.GetStake())
 		} else {
 			side.Bet.Status = status.StatusNotAccepted
 			side.Bet.StatusInfo = "api_bet_id_is_0"
