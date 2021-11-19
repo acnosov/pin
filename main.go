@@ -15,6 +15,8 @@ import (
 	"syscall"
 )
 
+const Version = 0.1
+
 func main() {
 	os.Setenv("SERVICE_NAME", "pin-service")
 	os.Setenv("MSSQL_DATABASE", "PinServiceDev")
@@ -33,7 +35,7 @@ func main() {
 		panic(err)
 	}
 
-	log.Infow("Begin service", "config", cfg)
+	log.Infow("Begin service", "version", Version, "config", cfg)
 	db := sqlserver.MustConnect(cfg)
 	sto := store.NewStore(cfg, log, db)
 

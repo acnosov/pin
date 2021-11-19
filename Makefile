@@ -9,7 +9,7 @@ linux_build:
 	GOOS=linux go build -o dist/service main.go
 
 build:
-	CGO_ENABLED=0 GOARCH=amd64 go build -ldflags="-w -s" -o dist/pin.exe main.go
+	go build -ldflags="-w -s" -o dist/pin.exe main.go
 
 run:
 	go run main.go
