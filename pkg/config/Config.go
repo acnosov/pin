@@ -17,5 +17,7 @@ type Config struct {
 	//DafPass       string
 	PinEsportHost string
 	//DafIncapValue string
-	PinDebug bool `envconfig:"default=false"`
+	PinDebug     bool `envconfig:"default=false"`
+	PinApiKey    string
+	PinApiDevice string
 }

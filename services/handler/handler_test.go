@@ -2,28 +2,37 @@ package handler
 
 import (
 	"context"
-	"fmt"
 	pb "github.com/aibotsoft/gen/fortedpb"
-	"github.com/aibotsoft/micro/config"
-	"github.com/aibotsoft/micro/config_client"
-	"github.com/aibotsoft/micro/logger"
-	"github.com/aibotsoft/micro/sqlserver"
+	"github.com/aibotsoft/pin/pkg/config"
+	"github.com/aibotsoft/pin/pkg/sqlserver"
 	"github.com/aibotsoft/pin/pkg/store"
 	"github.com/aibotsoft/pin/services/auth"
 	"github.com/stretchr/testify/assert"
+	"github.com/vrischmann/envconfig"
+	"go.uber.org/zap"
 	"testing"
 )
 
 var h *Handler
 
 func TestMain(m *testing.M) {
-	cfg := config.New()
-	log := logger.New()
-	db := sqlserver.MustConnectX(cfg)
+	logger, err := zap.NewDevelopment()
+	if err != nil {
+		panic(err)
+	}
+	log := logger.Sugar()
+
+	cfg := &config.Config{}
+	err = envconfig.Init(cfg)
+	if err != nil {
+		panic(err)
+	}
+	log.Infow("Begin service", "config", cfg)
+
+	db := sqlserver.MustConnect(cfg)
 	sto := store.NewStore(cfg, log, db)
-	conf := config_client.New(cfg, log)
-	a := auth.New(cfg, log, sto, conf)
-	h = NewHandler(cfg, log, sto, a, nil)
+	a := auth.New(cfg, log, sto)
+	h = NewHandler(cfg, log, sto, a)
 	m.Run()
 	h.Close()
 }
@@ -79,19 +88,21 @@ var MarketNames = []string{
 
 func TestHandler_CheckLine(t *testing.T) {
 	ctx := context.Background()
-	h.BetStatusRound(ctx)
+	//h.BetStatusRound(ctx)
 
-	events, _ := h.store.SelectCurrentEvents(ctx, 29, 1, "Regular")
-	e := events[0]
+	//events, _ := h.store.SelectCurrentEvents(ctx, 29, 1, "Regular")
+	//e := events[0]
 	side := &pb.SurebetSide{
 		ServiceName: "Pinnacle",
-		SportName:   e.SportName,
-		LeagueName:  e.LeagueName,
-		Home:        e.Home,
-		Away:        e.Away,
+		SportName:   "E Sports",
+		LeagueName:  "Test",
+		Home:        "Test",
+		Away:        "Test",
 		MarketName:  "1",
 		//Url:       "https://members.pinnacle.com/Sportsbook/Mobile/ru-RU/Enhanced/Regular/SportsBookAll/35/Curacao/Odds/E Sports-12/Market/2/208947/1122534935",
-		Url:       fmt.Sprintf("/Odds/%v-%v/Market/2/%v/%v", e.SportName, e.SportId, e.LeagueId, e.Id),
+		//https://beta.pinnacle.com/en/Sports/29/Leagues/2368/Events/1433894850
+		Url:       "https://beta.pinnacle.com/en/Sports/29/Leagues/2368/Events/1433894850",
+		Price:     2,
 		Check:     &pb.Check{},
 		Market:    &pb.Market{},
 		BetConfig: &pb.BetConfig{MaxStake: 10},

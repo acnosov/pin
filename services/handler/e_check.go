@@ -44,10 +44,12 @@ func ConvertEMarket(m Market) string {
 }
 func (h *Handler) ECheck(ctx context.Context, sb *pb.Surebet, m Market) {
 	side := sb.Members[0]
+
 	marketKey := ConvertEMarket(m)
 	//h.log.Infow(marketKey, "team", m.Team, "hand", m.Handicap, "calc", calcHandicap(m))
 	eventId, _ := strconv.ParseInt(side.EventId, 10, 64)
-	resp, r, err := h.eClient.BetApi.GetLine(h.auth.Auth(ctx)).PlaceBetRequest(epinapi.PlaceBetRequest{
+
+	req := epinapi.PlaceBetRequest{
 		OddsFormat: "decimal",
 		Selections: []epinapi.SelectionItem{{
 			MatchupId:   eventId,
@@ -56,9 +58,20 @@ func (h *Handler) ECheck(ctx context.Context, sb *pb.Surebet, m Market) {
 			Price:       side.Price,
 			Points:      m.Handicap,
 		}},
-	}).Execute()
+	}
+	//h.log.Info("hello", req)
+
+	resp, r, err := h.eClient.BetApi.GetLine(h.auth.Auth(ctx)).PlaceBetRequest(req).Execute()
 	if err != nil {
 		if r == nil {
+			sel := epinapi.SelectionItem{
+				MatchupId:   eventId,
+				MarketKey:   marketKey,
+				Designation: calcDesignation(m),
+				Price:       side.Price,
+				Points:      m.Handicap,
+			}
+			h.log.Infow("request_error", "sel", sel)
 			side.Check.Status = status.StatusError
 			side.Check.StatusInfo = "request_error"
 			return

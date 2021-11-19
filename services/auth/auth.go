@@ -102,7 +102,6 @@ func (a *Auth) CheckLogin(ctx context.Context) error {
 		if r != nil && r.StatusCode == 401 {
 			return UnauthorizedError
 		}
-		a.log.Info(r.Request.URL)
 		return fmt.Errorf("check_login_error: %s", err)
 	}
 	return nil
@@ -110,17 +109,17 @@ func (a *Auth) CheckLogin(ctx context.Context) error {
 
 func (a *Auth) Auth(ctx context.Context) context.Context {
 	keyMap := map[string]api.APIKey{
-		"x-api-key":     {Key: a.token.ApiKey},
+		"x-api-key":     {Key: a.cfg.PinApiKey},
 		"x-session":     {Key: a.token.Session},
-		"x-device-uuid": {Key: a.token.Device},
+		"x-device-uuid": {Key: a.cfg.PinApiDevice},
 	}
 	return context.WithValue(ctx, api.ContextAPIKeys, keyMap)
 }
 func (a *Auth) AuthLogin(ctx context.Context) context.Context {
 	keyMap := map[string]api.APIKey{
-		"x-api-key": {Key: a.token.ApiKey},
+		"x-api-key": {Key: a.cfg.PinApiKey},
 		//"x-session":     {Key: a.token.Session},
-		"x-device-uuid": {Key: a.token.Device},
+		"x-device-uuid": {Key: a.cfg.PinApiDevice},
 	}
 	return context.WithValue(ctx, api.ContextAPIKeys, keyMap)
 }

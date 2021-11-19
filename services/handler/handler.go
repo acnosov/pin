@@ -38,6 +38,8 @@ func NewHandler(cfg *config.Config, log *zap.SugaredLogger, store *store.Store, 
 	//cli := client.NewClient(cfg, log, account.Username, account.Password)
 
 	clientConfig := epinapi.NewConfiguration()
+	clientConfig.Host = cfg.PinEsportHost
+
 	tr := &http.Transport{TLSHandshakeTimeout: 0 * time.Second, IdleConnTimeout: 0 * time.Second}
 	clientConfig.HTTPClient = &http.Client{Transport: tr}
 	clientConfig.Debug = cfg.PinDebug
@@ -119,6 +121,7 @@ func (h *Handler) CheckLine(ctx context.Context, sb *pb.Surebet) error {
 		return nil
 	}
 	lockTime := time.Since(lockStart)
+
 	//balance, _ := h.balance.Get()
 	//if balance < float64(side.BetConfig.MaxStake) {
 	//	h.CheckBalance(true)
@@ -131,6 +134,7 @@ func (h *Handler) CheckLine(ctx context.Context, sb *pb.Surebet) error {
 		h.log.Error(err)
 		return nil
 	}
+
 	err = ParseUrl(side)
 	if err != nil {
 		h.log.Error(err)
@@ -241,7 +245,11 @@ func (h *Handler) CheckLine(ctx context.Context, sb *pb.Surebet) error {
 			"diff", sb.Calc.MiddleDiff,
 		)
 	} else {
-		h.log.Infow("check_not_ok", "status", side.Check.Status, "fp", side.Price, "g", fmt.Sprintf("%v-%v-%v:%v", side.SportName, side.Home, side.Away, side.MarketName),
+		h.log.Infow("check_not_ok",
+			"status", side.Check.Status,
+			"status_info", side.Check.StatusInfo,
+			"fp", side.Price,
+			"g", fmt.Sprintf("%v-%v-%v:%v", side.SportName, side.Home, side.Away, side.MarketName),
 			"bt", side.Market.BetType,
 			"lt", lockTime,
 			"sub", side.Check.SubService,

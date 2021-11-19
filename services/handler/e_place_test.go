@@ -39,7 +39,7 @@ func TestHandler_EPlaceBet(t *testing.T) {
 	if assert.NoError(t, err) {
 		assert.NotEmpty(t, line.SportId)
 		t.Log(line.SportId)
-		err := h.PlaceBet(ctx, sb)
-		assert.NoError(t, err)
+		//err := h.PlaceBet(ctx, sb)
+		//assert.NoError(t, err)
 	}
 }
