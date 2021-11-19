@@ -22,7 +22,6 @@ func main() {
 	os.Setenv("MSSQL_DATABASE", "PinServiceDev")
 	os.Setenv("GRPC_PORT", "50053")
 
-	//cfg := config.New()
 	logger, err := zap.NewDevelopment()
 	if err != nil {
 		panic(err)
