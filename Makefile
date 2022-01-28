@@ -1,7 +1,13 @@
 #source .env
 .EXPORT_ALL_VARIABLES:
-SERVICE_NAME=pin-service
+SERVICE_NAME=pin
+
 DOCKER_USERNAME=aibotsoft
+GIT_COMMIT?=$(shell git rev-parse "HEAD^{commit}" 2>/dev/null)
+GIT_TAG?=$(shell git describe --abbrev=0 --tags 2>/dev/null)
+BUILD_DATE:=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
+PKG:=github.com/$(DOCKER_USERNAME)/$(SERVICE_NAME)/pkg
+LDFLAGS:=-w -s -X $(PKG)/version.Version=$(GIT_TAG) -X $(PKG)/version.BuildDate=$(BUILD_DATE)
 CGO_ENABLED=0
 GOARCH=amd64
 
@@ -9,7 +15,7 @@ linux_build:
 	GOOS=linux go build -o dist/service main.go
 
 build:
-	go build -ldflags="-w -s" -o dist/pin.exe main.go
+	CGO_ENABLED=0 GOARCH=amd64 go build -ldflags="$(LDFLAGS)" -o dist/$(SERVICE_NAME).exe main.go
 
 run:
 	go run main.go

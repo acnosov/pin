@@ -5,6 +5,7 @@ import (
 	"github.com/aibotsoft/pin/pkg/config"
 	"github.com/aibotsoft/pin/pkg/sqlserver"
 	"github.com/aibotsoft/pin/pkg/store"
+	"github.com/aibotsoft/pin/pkg/version"
 	"github.com/aibotsoft/pin/services/auth"
 	"github.com/aibotsoft/pin/services/handler"
 	"github.com/aibotsoft/pin/services/server"
@@ -14,8 +15,6 @@ import (
 	"os/signal"
 	"syscall"
 )
-
-const Version = 0.1
 
 func main() {
 	os.Setenv("SERVICE_NAME", "pin-service")
@@ -34,7 +33,10 @@ func main() {
 		panic(err)
 	}
 
-	log.Infow("Begin service", "version", Version, "config", cfg)
+	log.Infow("start_service",
+		"version", version.Version,
+		"build_date", version.BuildDate,
+		"config", cfg)
 	db := sqlserver.MustConnect(cfg)
 	sto := store.NewStore(cfg, log, db)
 
